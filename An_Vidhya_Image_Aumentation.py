@@ -107,7 +107,7 @@ for i in tqdm(range(train_x.shape[0])):
 #%%
 # 4. Convert to an array
 print(len(final_target_train), len(final_train_data))
-final_train = np.array(final_train_data)
+final_train = np.array(final_train_data, dtype=np.str)
 final_target_train = np.array(final_target_train)
 #%%
 # 5. Visualize these augmented images
