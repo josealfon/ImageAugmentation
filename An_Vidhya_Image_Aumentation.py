@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 #%%
 # 2. Importar imágenes y visualizarlas
 # Descargar la imagen utilizada en:  https://drive.google.com/file/d/1Ld4gDh-XjEZiCmQjvFV1WFBgC6LyvNB0/view?usp=sharing
-image = io.imread('emergency_vs_non-emergency_dataset/images/0.jpg')
+image = io.imread('/home/jose/Documentos/ImageAugmentation/emergency_vs_non-emergency_dataset/images/0.jpg')
 print(image.shape)
 io.imshow(image)
 #%%
@@ -74,13 +74,13 @@ from skimage.util import random_noise
 from skimage.filters import gaussian
 from scipy import ndimage
 #%%
-data = pd.read_csv('emergency_vs_non-emergency_dataset/emergency_train.csv')
+data = pd.read_csv('/home/jose/Documentos/ImageAugmentation/emergency_vs_non-emergency_dataset/emergency_train.csv')
 data.head()
 #%%
 # 2. Loading images
 train_img = []
 for img_name in tqdm(data['image_names']):
-    image_path = 'emergency_vs_non-emergency_dataset/images/' + img_name
+    image_path = '/home/jose/Documentos/ImageAugmentation/emergency_vs_non-emergency_dataset/images/' + img_name
     img = imread(image_path)
     img = img/255
     train_img.append(img)
@@ -107,7 +107,7 @@ for i in tqdm(range(train_x.shape[0])):
 #%%
 # 4. Convert to an array
 print(len(final_target_train), len(final_train_data))
-final_train = np.array(final_train_data, dtype=np.str)
+final_train = np.array(final_train_data)
 final_target_train = np.array(final_target_train)
 #%%
 # 5. Visualize these augmented images
@@ -135,14 +135,15 @@ final_target_train = torch.from_numpy(final_target_train)
 val_x =val_x.reshape(165, 3, 224, 224)
 val_x = torch.from_numpy(val_x)
 val_x = val_x.float()
-#%%
+
 # 7. MODEL ARCHITECTURE
-torch.manual_seed(0)
 #%%
-class Net(Module):
+torch.manual_seed(0)
+
+class Net(Module):   
     def __init__(self):
         super(Net, self).__init__()
-        
+
         self.cnn_layers = Sequential(
             # Defining a 2D convolution layer
             Conv2d(3, 32, kernel_size=3, stride=1, padding=1),
@@ -151,37 +152,47 @@ class Net(Module):
             BatchNorm2d(32),
             MaxPool2d(kernel_size=2, stride=2),
             # adding dropout
-            Dropout(p=0.25)
-            Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
-            ReLU(inplace=True)
-            BatchNorm2d(128),
-            MaxPool2d(kernel_size=2, stride=2),
             Dropout(p=0.25),
+            # Defining another 2D convolution layer
+            Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
+            ReLU(inplace=True),
+            # adding batch normalization
+            BatchNorm2d(64),
+            MaxPool2d(kernel_size=2, stride=2),
+            # adding dropout
+            Dropout(p=0.25),
+            # Defining another 2D convolution layer
             Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
             ReLU(inplace=True),
+            # adding batch normalization
             BatchNorm2d(128),
             MaxPool2d(kernel_size=2, stride=2),
+            # adding dropout
             Dropout(p=0.25),
+            # Defining another 2D convolution layer
             Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
-            ReLU(inplace=True)
+            ReLU(inplace=True),
+            # adding batch normalization
             BatchNorm2d(128),
             MaxPool2d(kernel_size=2, stride=2),
+            # adding dropout
             Dropout(p=0.25),
         )
+
         self.linear_layers = Sequential(
-            Linear(128*14*14, 512),
+            Linear(128 * 14 * 14, 512),
             ReLU(inplace=True),
             Dropout(),
             Linear(512, 256),
             ReLU(inplace=True),
-            Dropout()
+            Dropout(),
             Linear(256,10),
             ReLU(inplace=True),
             Dropout(),
             Linear(10,2)
         )
-#%%
-# Defining the forward pass    
+
+    # Defining the forward pass    
     def forward(self, x):
         x = self.cnn_layers(x)
         x = x.view(x.size(0), -1)
@@ -190,11 +201,11 @@ class Net(Module):
 #%%
 # Defining the model
 model = Net()
-    # Defining the optimizer
+# defining the optimizer
 optimizer = Adam(model.parameters(), lr=0.000075)
 # defining the loss function
 criterion = CrossEntropyLoss()
-# Checking if GPU is available
+# checking if GPU is available
 if torch.cuda.is_available():
     model = model.cuda()
     criterion = criterion.cuda()
@@ -202,28 +213,41 @@ print(model)
 #%%
 # 8. TRAINING THE MODEL
 torch.manual_seed(0)
-batch_size = 64
+
+# batch size of the model
+batch_size = 32
+
+# number of epochs to train the model
 n_epochs = 20
+
 for epoch in range(1, n_epochs+1):
+
     train_loss = 0.0
+        
     permutation = torch.randperm(final_train.size()[0])
+
     training_loss = []
-    for i in tqdm(range(0, final_train.size()[0], batch_size)):
-        indices = permutation[i: i+batch_size]
+    for i in tqdm(range(0,final_train.size()[0], batch_size)):
+
+        indices = permutation[i:i+batch_size]
         batch_x, batch_y = final_train[indices], final_target_train[indices]
+        
         if torch.cuda.is_available():
             batch_x, batch_y = batch_x.cuda(), batch_y.cuda()
-        optimizer.zero_grad()
-        outputs = model(batch_x)
-        loss = criterion(outputs, batch_y)
         
-        training_loss.papend(loss.item())
+        optimizer.zero_grad()
+        outputs = model.forward(batch_x)
+        loss = criterion(outputs,batch_y)
+
+        training_loss.append(loss.item())
         loss.backward()
         optimizer.step()
         
     training_loss = np.average(training_loss)
     print('epoch: \t', epoch, '\t training loss: \t', training_loss)
- #%%   
+  
+
+#%%
 # 9. SAVE THE MODEL
 torch.save(model, 'model.pt')
 #%%
@@ -248,7 +272,7 @@ for i in tqdm(range(0,final_train.size()[0], batch_size)):
     predictions = np.argmax(prob, axis=1)
     prediction.append(predictions)
     target.append(batch_y)
- #%%   
+#%%    
 # training accuracy
 accuracy = []
 for i in range(len(prediction)):
@@ -259,35 +283,11 @@ print('training accuracy: \t', np.average(accuracy))
 # 11. CHECKING THE PERFORMANCE OF VALIDATION SET
 
 torch.manual_seed(0)
-output = model(val_x.cuda())
+with torch.no_grad():
+    output = model(val_x.cuda())
 softmax = torch.exp(output).cpu()
 prob = list(softmax.detach().numpy())
 predictions = np.argmax(prob, axis=1)
 accuracy_score(val_y, predictions)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 # %%
