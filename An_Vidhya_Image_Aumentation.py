@@ -215,7 +215,7 @@ print(model)
 torch.manual_seed(0)
 
 # batch size of the model
-batch_size = 32
+batch_size = 64
 
 # number of epochs to train the model
 n_epochs = 20
@@ -272,7 +272,7 @@ for i in tqdm(range(0,final_train.size()[0], batch_size)):
     predictions = np.argmax(prob, axis=1)
     prediction.append(predictions)
     target.append(batch_y)
-#%%    
+      
 # training accuracy
 accuracy = []
 for i in range(len(prediction)):
